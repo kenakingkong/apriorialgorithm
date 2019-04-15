@@ -1,2 +1,6 @@
-# apriorialgorithm
-CSC 466 Project 1
+# CSC 466 Project 1
+## Apriori Algorithm
+
+### Makena Kong
+
+### 
