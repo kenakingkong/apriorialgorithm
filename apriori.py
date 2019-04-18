@@ -20,13 +20,54 @@ class Candidate {
 def get_parents(cTree):
     pass
 
-# calculates the support for this level of candidates
+# calculates the RELATIVE support for this level of candidates
 def compute_support(cTree, D):
-    pass
 
-# calculates the confidence for this level of candidates
+    d_length = 0;
+    c_length = len(cTree.children);
+
+    # loop through children
+    for c in range(0,c_length):
+        data = cTree.children[c].x;
+        count = 0;
+
+        # get support xy
+        for record in D:
+            d_length +=1;   # saving length of D
+            if data in record:
+                count +=1
+
+        # update rsup
+        # rsup = sup(xy)/|d|
+        cTree.children[c].sup = count / d_length;
+
+    return cTree;
+
+# calculates the RELATIVE confidence for this level of candidates
 def compute_confidence(cTree, D):
-    pass
+
+    d_length = 0;
+    c_length = len(cTree.children);
+
+    # loop though children
+    for c in range(0,c_length):
+        data = cTree.children[c].x;
+        count = 0;
+
+        # get support xy
+        for record in D:
+            d_length +=1;
+            if data in record:
+                count +=1;
+
+        # conf = sup(xy)/sup(x)
+        confidence = count / cTree.children[c].sup
+
+        # update with rconf
+        # rconf = conf / |d| ??
+        cTree.children[c].conf = confidence / d_length;
+
+    return cTree;
 
 # adds candidates as leaves from current node
 def extend_tree(cTree):
@@ -61,8 +102,10 @@ def extend_tree(cTree):
 
 def apriori(D,I,msup,mconf):
 
-    fTree = Candidate(); # result tree
-    cTree = Candidate(); # prefix tree
+    # trees are represented as a 2d list
+    # each level is the next index
+    fTree = []; # result tree
+    cTree = []; # prefix tree
 
     # add the first row of items
     for i in I:
@@ -73,17 +116,32 @@ def apriori(D,I,msup,mconf):
 
     # loop through chidren
     while (len(cTree) > 0):
-        compute_support(cTree, D);
+
+        # return cTree with updated min sup and confidence
+        cTree = compute_support(cTree, D);
+        cTree = compute_confidence(cTree, D);
+
         for child in cTree.children:
-            if (child.sup >= minsup):
+            if (child.sup >= minsup and child.conf >= minconf):
                 # somehow add to F
                 fTree.children.append(child);
             else:
                 child.removed = True;
+
+        # creates next level
         cTree = extend_tree(cTree);
-        cTree.level += 1;
+        #cTree.level += 1;
         k +=1;
 
+    return fTree;
+
+# print association rule on each line
+# x,y --> a,b,c
+def print_rules(fTree, last_level):
+
+
+    # get the parent
+    # print the children (that aren't removed)
 
 def main():
 
@@ -97,11 +155,11 @@ def main():
 
     # convert file into database????? set of lists?
 
-    apriori(file, minsup, minconf);
-    #association_rules = apriori(file, minsup, minconf);
-    #print association_rules
+    # find the frequent sets
+    freq_set = apriori(file, minsup, minconf);
 
-
+    # print the association rules
+    print_rules(freq_set);
 
 if __name__ == "__main__":
     main()
