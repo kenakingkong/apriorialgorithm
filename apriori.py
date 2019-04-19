@@ -140,7 +140,7 @@ def extend_tree(tree, k):
 
 
 # apriori algorithm
-def apriori(D,I,minsup):
+def freq_sets(D,I,minsup):
 
     fTree = [[Candidate()]]; # result
     cTree = [[Candidate()]]; # prefix tree
@@ -224,6 +224,16 @@ def print_frequent_itemsets(tree):
         for itemset in level:
             print("%s" % ", ".join(itemset.x))
 
+# check if list large contains the sequence small
+def contains_seq(large, small):
+    i = 0
+    for item in large:
+        if item is small[i]:
+            i++
+            if i >= len(large):
+                return True
+    return False
+
 def main():
 
     if (len(sys.argv) != 4):
@@ -239,7 +249,7 @@ def main():
     I = get_unique(D);
 
     # find the frequent sets
-    freq_set = apriori(D, I, minsup);
+    freq_set = freq_sets(D, I, minsup);
     #print("\n***F Tree***\n");
     #print_tree(freq_set)
 
