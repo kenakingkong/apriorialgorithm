@@ -1,165 +1,255 @@
 '''
-    Apriori Algorithm
+    Project 1: Apriori Algorithm
 '''
-import pandas as pd
+import itertools
 import sys
 
-class Candidate {
-    def __init__(self, x, parents, children, sup, conf, level, removed){
-        self.x = "";
-        self.parents =  [];
-        self.children = [];
-        self.sup = 0;
-        self.conf = 0;
-        self.level = 0;
-        self.removed = False;
-    }
-}
+class Candidate:
+    '''
+    Returns a Candidate
+    Similar to a tree node but tailored for the apriori algorithm
+    '''
+    def __init__(self, x=[], parents=[], children=[], sup=0, conf=0, level=0):
+        self.x = x;
+        self.parents =  parents;
+        self.children = children;
+        self.sup = sup;
+        self.conf = conf;
+        self.level = level;
 
-# get the parents of current candidate
-def get_parents(cTree):
-    pass
+    def __str__(self):
+        return( "Candidate - level:" + str(self.level) + " s:" + str(self.sup) + " c:" + str(self.conf) +
+                " data: " + ', '.join(str(x) for x in self.x))
+
+    def __repr__(self):
+        return( "Candidate - level:" + str(self.level) + " s:" + str(self.sup) + " c:" + str(self.conf) +
+                " data:" + ''.join(str(x) for x in self.x))
+
+    def __eq__(self, other):
+        return (set(self.x) == set(other.x))
+
+    def print_data(self):
+        print(''.join(str(x) for x in self.x))
+
+'''
+    Helper Functions
+'''
+
+# pretty print a tree
+def print_tree(tree):
+    level = 0
+    for node in tree:
+        print("Level: %d" % level)
+        for item in node:
+            print(item)
+        level+=1
+
+# read csv file into 2d list representing Database
+def read_csv(file):
+    D = []
+    with open(file) as f:
+        for line in f:
+            D.append(line.rstrip().split(","))
+    return D
+
+# wont work :(
+# get all possible values
+def get_unique(D):
+    unique_list = set();
+    for record in D:
+        unique_list = unique_list | set(record)
+    return list(unique_list)
+
+# get all subsets of s of size k
+def find_subsets(s, k):
+    return [set(i) for i in itertools.combinations(s, k)]
+
+# get all subsets (powerset?)
+def find_powerset(s):
+    s = list(s)
+    x = len(s)
+    powerset = []
+    for i in range(1 << x):
+        powerset.append(set(s[j] for j in range(x) if (i & (1 << j))))
+    return powerset
+
+'''
+Apriori Functions
+'''
 
 # calculates the RELATIVE support for this level of candidates
-def compute_support(cTree, D):
+def compute_support(c_level, k, D):
 
     d_length = 0;
-    c_length = len(cTree.children);
+    for record in D:
+        d_length += 1;
 
-    # loop through children
-    for c in range(0,c_length):
-        data = cTree.children[c].x;
-        count = 0;
+        # generate subsets of length k
+        subsets = find_subsets(set(record),k)
 
-        # get support xy
-        for record in D:
-            d_length +=1;   # saving length of D
-            if data in record:
-                count +=1
+        for subset in subsets:
+            for candidate in c_level:
+                if subset.issubset(set(candidate.x)):
+                    candidate.sup = round((candidate.sup) + (1/d_length),2);
 
-        # update rsup
-        # rsup = sup(xy)/|d|
-        cTree.children[c].sup = count / d_length;
-
-    return cTree;
-
-# calculates the RELATIVE confidence for this level of candidates
-def compute_confidence(cTree, D):
-
-    d_length = 0;
-    c_length = len(cTree.children);
-
-    # loop though children
-    for c in range(0,c_length):
-        data = cTree.children[c].x;
-        count = 0;
-
-        # get support xy
-        for record in D:
-            d_length +=1;
-            if data in record:
-                count +=1;
-
-        # conf = sup(xy)/sup(x)
-        confidence = count / cTree.children[c].sup
-
-        # update with rconf
-        # rconf = conf / |d| ??
-        cTree.children[c].conf = confidence / d_length;
-
-    return cTree;
+    return c_level;
 
 # adds candidates as leaves from current node
-def extend_tree(cTree):
+def extend_tree(tree, k):
 
-    # get to the right level
-    '''
-    curr_children = cTree.children;
-    while(len(curr_children) != 0 and
-            curr_children[0].level != level):
-        curr_children = cTree.children;
-    '''
-    curr_children = cTree.children;
-    length = len(curr_children);
-    for i in range(0,length):
-        current = curr_children[i];
-        for j in range(i,length):
-            sibling = curr_children[j];
-            child = Candidate();
-            child.level = k+1;
-            child.x =  set(current.x) | set(sibling.x);
-            child.parents = get_parents(cTree, child.x);
+    leaves = tree[k]
+    length = len(leaves);
+    tree.append([]);
 
-            if (remove_child(child)):
-                child.removed = True;
-            current.children.append(child);
+    leaf_list = []
+    for leaf in leaves:
+        leaf_list.append(set(leaf.x))
 
-        if (len(current.childen) < 1):
-            current.removed = True;
+    # for each leaf
+    for a in range(0,length):
+        leaf = leaves[a]
 
-        return curr_children;
+        # for each sibling leaf where b>a
+        for b in range(a+1, length):
+            sibling = leaves[b];
+
+            data = set(leaf.x) | set(sibling.x)     # Xab = Xa U Xb
+            #print(data)
+
+            # prune candidates with infrequent subsets
+            subsets = find_subsets(data, len(data)-1)
+            #print(subsets)
+            for subset in subsets:
+                for leaf_set in leaf_list:
+                    if (subset == leaf_set):
+                        candidate = Candidate();
+                        candidate.x = data;
+                        candidate.level = leaf.level + 1
+                        candidate.parents = leaf
+                        #leaves[a].children.append(candidate);
+
+                        # if acceptable, add leaf if not already added
+                        if (candidate not in tree[k+1]):
+                            tree[k+1].append(candidate);
+
+        # if no extension
+        if (len(leaves[a].children) == 0):
+            leaves.pop(a);
+
+    return tree;
 
 
-def apriori(D,I,msup,mconf):
+# apriori algorithm
+def apriori(D,I,minsup):
 
-    # trees are represented as a 2d list
-    # each level is the next index
-    fTree = []; # result tree
-    cTree = []; # prefix tree
+    fTree = [[Candidate()]]; # result
+    cTree = [[Candidate()]]; # prefix tree
 
-    # add the first row of items
+    # add initial single items
+    k = 1;
+    cTree.append([]);   #add level 1 to cTree
     for i in I:
-        child = Candidate();
-        child.parent = cTree;
-        child.level = 1;
-        cTree.children.append(child)
+        child = Candidate()
+        child.x = [i];
+        child.level = k;
+        child.parents = [cTree[0][0]];
+        cTree[0][0].children.append(child);
+        cTree[k].append(child);
 
-    # loop through chidren
-    while (len(cTree) > 0):
+    # generate subsets until none left
+    while (len(cTree[k])>0):
 
-        # return cTree with updated min sup and confidence
-        cTree = compute_support(cTree, D);
-        cTree = compute_confidence(cTree, D);
+        cTree[k] = compute_support(cTree[k], k, D);
 
-        for child in cTree.children:
-            if (child.sup >= minsup and child.conf >= minconf):
-                # somehow add to F
-                fTree.children.append(child);
+        # prune (add to F or remove from C[k])
+        fTree.append([]);
+        remove_list = []
+        for leaf in cTree[k]:
+            if (leaf.sup >= minsup):
+                fTree[k].append(leaf)
             else:
-                child.removed = True;
+                remove_list.append(leaf)
 
-        # creates next level
-        cTree = extend_tree(cTree);
-        #cTree.level += 1;
-        k +=1;
+        for leaf in remove_list:
+            cTree[k].remove(leaf);
+
+        # generate candidates for frequent itemsets
+        cTree = extend_tree(cTree, k);
+        k +=1
+
+    '''
+    print("\nC: ")
+    print_tree(cTree);
+    print("\nF: ")
+    print_tree(fTree);
+    '''
 
     return fTree;
 
-# print association rule on each line
-# x,y --> a,b,c
-def print_rules(fTree, last_level):
+
+'''
+    Rule Mining Functions
+'''
+
+# calculates the RELATIVE confidence
+# support(I) - support(s)
+def compute_confidence(I, s):
+    return (I.sup - s.sup)
+
+# prints the rules of the frequent itemsets
+def print_rules(tree, minconf, d):
+
+    for itemset in tree[1]:
+        print(itemset.x)
+        print(itemset.children)
+        #for child in itemset.children:
+    #        print(child.x)
+        print("*")
+
+        '''
+        if (compute_confidence(itemset, child) >= minconf):
+            x = ", ".join(itemset.x)
+            y = ", ".join(child.x)
+            print("%s --> %s" % (y,x))
+        '''
 
 
-    # get the parent
-    # print the children (that aren't removed)
+    print("\nin the works");
+
+# print all the frequent itemsets
+def print_frequent_itemsets(tree):
+    for level in tree:
+        if not level[0].x :
+            continue;
+        for itemset in level:
+            print("%s" % ", ".join(itemset.x))
 
 def main():
 
-    if (len(sys.argv) != 3):
+    if (len(sys.argv) != 4):
         print("Usage: python apriori <file.csv> minsup minconf");
         sys.exit();
 
-    file = sys.argv[2];
-    minsup = sys.argv[3];
-    minconf = sys.argv[4];
+    file = sys.argv[1];
+    minsup = float(sys.argv[2]);
+    minconf = float(sys.argv[3]);
 
-    # convert file into database????? set of lists?
+    # read file
+    D = read_csv(file);
+    I = get_unique(D);
 
     # find the frequent sets
-    freq_set = apriori(file, minsup, minconf);
+    freq_set = apriori(D, I, minsup);
+    #print("\n***F Tree***\n");
+    #print_tree(freq_set)
+
+    print("\n***Frequent Itemsets***\n")
+    print_frequent_itemsets(freq_set)
 
     # print the association rules
-    print_rules(freq_set);
+    print("\n***Association Rules***\n")
+    print_rules(freq_set, minconf, len(D));
+
 
 if __name__ == "__main__":
     main()
