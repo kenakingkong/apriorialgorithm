@@ -229,7 +229,7 @@ def contains_seq(large, small):
     i = 0
     for item in large:
         if item is small[i]:
-            i++
+            i+=1
             if i >= len(large):
                 return True
     return False
